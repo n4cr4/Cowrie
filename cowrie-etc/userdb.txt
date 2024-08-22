@@ -1,0 +1,6 @@
+root:x:root
+root:x:123456
+
+tomcat:x:*
+oracle:x:*
+admin:x:*
