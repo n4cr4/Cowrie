@@ -71,6 +71,21 @@ def handle_session_closed(event_type, log_entry, session_start_times, commands_p
                 "src_ip": session_src_ips.get(session_id, "不明"),
             }
 
+def handle_manual_connection(event_type, log_entry, session_src_ips, terminal_info):
+    """仮想端末情報の処理"""
+    event_type = log_entry.get("eventid")
+    session_id = log_entry.get("session")
+    
+    if event_type == "cowrie.client.size":
+        width = log_entry.get("width")
+        height = log_entry.get("height")
+
+        terminal_info[session_id] = {
+        "width": width,
+        "height": height,
+        "src_ip": session_src_ips.get(session_id, "不明")
+        }
+
 
 def analyze_cowrie_logs(log_file):
     """Cowrieログファイルを解析し、集計を行う"""
@@ -82,6 +97,7 @@ def analyze_cowrie_logs(log_file):
     session_start_times = {}
 
     session_durations = {}
+    terminal_info = {}
 
     session_src_ips = {}
     no_command_sessions = [0]
@@ -98,6 +114,7 @@ def analyze_cowrie_logs(log_file):
                 handle_failed_command(event_type, log_entry, failed_commands)
                 handle_command_input(event_type, log_entry, commands_per_session)
                 handle_session_closed(event_type, log_entry, session_start_times, commands_per_session, no_command_sessions, session_durations, session_src_ips)
+                handle_manual_connection(event_type, log_entry, session_src_ips, terminal_info)
 
             except json.JSONDecodeError:
                 print(f"JSONデコードエラー: {line}")
@@ -109,6 +126,7 @@ def analyze_cowrie_logs(log_file):
         "failed_commands": failed_commands,
         "no_command_sessions": no_command_sessions[0],
         "session_durations": session_durations,
+        "terminal_info": terminal_info
     }
 
 def aggregate_results(log_file_pattern):
@@ -124,6 +142,7 @@ def aggregate_results(log_file_pattern):
     }
 
     session_durations = {}
+    terminal_info = {}
     input_commands = defaultdict(list)
 
     for log_file_path in glob.glob(log_file_pattern):
@@ -141,6 +160,7 @@ def aggregate_results(log_file_pattern):
 
 
         session_durations.update(result["session_durations"])
+        terminal_info.update(result["terminal_info"])
 
         with open(log_file_path, "r") as f:
             for line in f:
@@ -157,14 +177,14 @@ def aggregate_results(log_file_pattern):
                 except json.JSONDecodeError:
                     print(f"JSONデコードエラー: {line}")
 
-    return analysis_results, session_durations, input_commands
+    return analysis_results, session_durations, input_commands, terminal_info
 
 def save_to_json(data, filename):
     """辞書データをJSON形式でファイルに保存"""
     with open(filename, "w") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-def save_to_markdown(analysis_results, session_durations, input_commands, filename):
+def save_to_markdown(analysis_results, session_durations, input_commands, terminal_info, filename):
 
     """解析結果をMarkdown形式でファイルに保存（表形式とインラインコード使用）"""
     with open(filename, "w") as f:
@@ -199,6 +219,20 @@ def save_to_markdown(analysis_results, session_durations, input_commands, filena
 
         # コマンド実行なしで終了したセッション数
         f.write(f"\n# コマンド実行なしで終了したセッション数\n{analysis_results['no_command_sessions']} 件\n")
+
+        # 仮想端末情報
+        f.write("# 仮想端末情報\n\n")
+        f.write("| セッションID | 幅 (Width) | 高さ (Height) | 接続元IP (src_ip) |\n")
+        f.write("| ------------ | --------- | ------------ | ---------------- |\n")
+
+        # `terminal_info`の内容を表として出力
+        for session_id, info in terminal_info.items():
+            width = info.get("width", "不明")
+            height = info.get("height", "不明")
+            src_ip = info.get("src_ip", "不明")
+            
+            # 各行のデータをMarkdown形式で書き込む
+            f.write(f"| {session_id} | {width} | {height} | {src_ip} |\n")
 
         # コマンド実行セッションの接続時間
         command_sessions_durations = [
@@ -238,9 +272,9 @@ def save_to_markdown(analysis_results, session_durations, input_commands, filena
 
 # メイン処理
 log_file_pattern = "../../log/cowrie.json*"
-analysis_results, session_durations, input_commands = aggregate_results(log_file_pattern)
+analysis_results, session_durations, input_commands, terminal_info = aggregate_results(log_file_pattern)
 save_to_json(input_commands, "command.json")
-save_to_markdown(analysis_results, session_durations, input_commands, "results.md")
+save_to_markdown(analysis_results, session_durations, input_commands, terminal_info, "results.md")
 
 
 print("command.json and analysis_results.md have been created.")
