@@ -86,6 +86,14 @@ def handle_manual_connection(event_type, log_entry, session_src_ips, terminal_in
         "src_ip": session_src_ips.get(session_id, "不明")
         }
 
+def handle_client(event_type, log_entry, client_info):
+    """SSHクライアントの種類の分析"""
+    event_type = log_entry.get("eventid")
+
+    if event_type == "cowrie.client.version":
+        version = log_entry.get("version")
+        if version:
+            client_info[version] += 1
 
 def analyze_cowrie_logs(log_file):
     """Cowrieログファイルを解析し、集計を行う"""
@@ -94,6 +102,7 @@ def analyze_cowrie_logs(log_file):
     actual_login_attempts_by_date = defaultdict(int)
     failed_commands = defaultdict(int)
     commands_per_session = defaultdict(int)
+    client_info =  defaultdict(int)
     session_start_times = {}
 
     session_durations = {}
@@ -115,6 +124,7 @@ def analyze_cowrie_logs(log_file):
                 handle_command_input(event_type, log_entry, commands_per_session)
                 handle_session_closed(event_type, log_entry, session_start_times, commands_per_session, no_command_sessions, session_durations, session_src_ips)
                 handle_manual_connection(event_type, log_entry, session_src_ips, terminal_info)
+                handle_client(event_type, log_entry, client_info)
 
             except json.JSONDecodeError:
                 print(f"JSONデコードエラー: {line}")
@@ -126,7 +136,8 @@ def analyze_cowrie_logs(log_file):
         "failed_commands": failed_commands,
         "no_command_sessions": no_command_sessions[0],
         "session_durations": session_durations,
-        "terminal_info": terminal_info
+        "terminal_info": terminal_info,
+        "client_info": client_info
     }
 
 def aggregate_results(log_file_pattern):
@@ -138,6 +149,7 @@ def aggregate_results(log_file_pattern):
         "ssh_attempts_by_date": defaultdict(int),
         "actual_login_attempts_by_date": defaultdict(int),
         "failed_commands": defaultdict(int),
+        "client_info": defaultdict(int),
         "no_command_sessions": 0,  # no_command_sessions は整数で保持
     }
 
@@ -248,6 +260,13 @@ def save_to_markdown(analysis_results, session_durations, input_commands, termin
             
             # 各行のデータをMarkdown形式で書き込む
             f.write(f"| {session_id} | {width} | {height} | {src_ip} |\n")
+
+        # SSHクライアントの情報
+        f.write("\n# SSHクライアント\n")
+        f.write("| クライアント | 接続試行 |\n")
+        f.write("| -------- | -------- |\n")
+        for version, count in analysis_results["client_info"].items():
+            f.write(f"| ``{version}`` | {count} 回 |\n")
 
         # コマンド実行セッションの接続時間
         command_sessions_durations = [
