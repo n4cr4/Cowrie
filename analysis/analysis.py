@@ -179,6 +179,21 @@ def aggregate_results(log_file_pattern):
 
     return analysis_results, session_durations, input_commands, terminal_info
 
+def format_commands(input_commands):
+    """input_commandsをコマンドごとにセッションIDを集約した形式に整形"""
+    command_to_sessions = defaultdict(lambda: {"sessions": []})
+
+    # input_commandsの各セッションIDごとのコマンドを集計
+    for session_id, commands in input_commands.items():
+        for command in commands:
+            command_to_sessions[command]["sessions"].append(session_id)
+
+    # コマンドごとの識別子を作成（コマンドそのものをキーにしても良い）
+    result_commands = {f"command_{i}": {"command": cmd, "sessions": data["sessions"]}
+                       for i, (cmd, data) in enumerate(command_to_sessions.items())}
+    
+    return result_commands
+
 def save_to_json(data, filename):
     """辞書データをJSON形式でファイルに保存"""
     with open(filename, "w") as f:
@@ -273,7 +288,7 @@ def save_to_markdown(analysis_results, session_durations, input_commands, termin
 # メイン処理
 log_file_pattern = "../../log/cowrie.json*"
 analysis_results, session_durations, input_commands, terminal_info = aggregate_results(log_file_pattern)
-save_to_json(input_commands, "command.json")
+save_to_json(format_commands(input_commands), "command.json")
 save_to_markdown(analysis_results, session_durations, input_commands, terminal_info, "results.md")
 
 
