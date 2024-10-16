@@ -266,6 +266,7 @@ def save_to_markdown(analysis_results, session_durations, input_commands, termin
         f.write("| クライアント | 接続試行 |\n")
         f.write("| -------- | -------- |\n")
         for version, count in analysis_results["client_info"].items():
+            version = version.replace('|', '\\|')
             f.write(f"| ``{version}`` | {count} 回 |\n")
 
         # コマンド実行セッションの接続時間
@@ -299,7 +300,9 @@ def save_to_markdown(analysis_results, session_durations, input_commands, termin
                 commands = details["commands"]
                 src_ip = details["src_ip"]
 
-                commands_str = ", ".join([f"`{cmd}`" for cmd in input_commands.get(session_id, [])]) or "なし"
+                esc_str = [cmd.replace("|", "\\|") for cmd in input_commands.get(session_id, [])]
+                commands_str = ", ".join([f"`{cmd}`" for cmd in esc_str]) or "なし"
+
                 f.write(f"| {session_id} | {duration:.2f} | {commands} | {commands_str} | {src_ip} |\n")
         else:
             f.write("\nコマンド実行セッションはありませんでした。\n")
