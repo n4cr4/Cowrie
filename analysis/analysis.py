@@ -8,7 +8,7 @@ def parse_timestamp(timestamp):
     return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ") if timestamp else None
 
 
-def handle_event_type(event_type, log_entry, events_by_type):
+def handle_event_type(event_type,  events_by_type):
     """イベントタイプを集計"""
     if event_type:
         events_by_type[event_type] += 1
@@ -108,7 +108,7 @@ def analyze_cowrie_logs(log_file):
                 log_entry = json.loads(line)
                 event_type = log_entry.get("eventid")
 
-                handle_event_type(event_type, log_entry, events_by_type)
+                handle_event_type(event_type, events_by_type)
                 handle_ssh_attempt(event_type, log_entry, ssh_attempts_by_date, session_start_times, session_src_ips)
                 handle_login_attempt(event_type, log_entry, actual_login_attempts_by_date)
                 handle_failed_command(event_type, log_entry, failed_commands)
