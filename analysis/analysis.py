@@ -1,5 +1,6 @@
 import glob
 import json
+import os
 from collections import defaultdict
 from datetime import datetime
 
@@ -308,10 +309,16 @@ def save_to_markdown(analysis_results, session_durations, input_commands, termin
             f.write("\nコマンド実行セッションはありませんでした。\n")
 
 # メイン処理
-log_file_pattern = "../../log/cowrie.json*"
+log_path = input("cowrie log dir path: ")
+log_file_pattern = f"{log_path}/cowrie.json*"
+result_path = input("analysis result dir path: ")
+result_path = f"{result_path}/analysis/"
+if not os.path.exists(result_path):
+    os.makedirs(result_path)
+
 analysis_results, session_durations, input_commands, terminal_info = aggregate_results(log_file_pattern)
-save_to_json(format_commands(input_commands), "command.json")
-save_to_markdown(analysis_results, session_durations, input_commands, terminal_info, "results.md")
+save_to_json(format_commands(input_commands), f"{result_path}/command.json")
+save_to_markdown(analysis_results, session_durations, input_commands, terminal_info, f"{result_path}/results.md")
 
 
 print("command.json and analysis_results.md have been created.")
