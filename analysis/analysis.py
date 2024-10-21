@@ -5,7 +5,7 @@ from datetime import datetime
 
 def parse_timestamp(timestamp):
     """タイムスタンプをdatetimeオブジェクトに変換する"""
-    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%fZ") if timestamp else None
+    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f%z") if timestamp else None
 
 
 def handle_event_type(event_type,  events_by_type):
