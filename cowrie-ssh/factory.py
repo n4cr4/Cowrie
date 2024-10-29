@@ -40,16 +40,32 @@ class CowrieSSHFactory(factory.SSHFactory):
         "ssh", "version", fallback="SSH-2.0-OpenSSH_6.0p1 Debian-4+deb7u2"
     ).encode("ascii")
     ssh_server_versions: list = [
-    "SSH-2.0-OpenSSH_7.4p1 Ubuntu-10.04",
-    "SSH-2.0-OpenSSH_8.0p1 Debian-9+deb9u3",
-    "SSH-2.0-OpenSSH_6.6p1 RedHat-7.4",
-    "SSH-2.0-OpenSSH_7.2p2 FreeBSD-10.3",
-    "SSH-2.0-OpenSSH_6.9p1 CentOS-6.9",
-    "SSH-2.0-OpenSSH_8.1p1 Fedora-32",
-    "SSH-2.0-OpenSSH_7.9p1 ArchLinux-2019.12",
-    "SSH-2.0-OpenSSH_7.6p1 Ubuntu-18.04",
-    "SSH-2.0-OpenSSH_8.2p1 Debian-10+deb10u2",
-    "SSH-2.0-OpenSSH_7.7p1 CentOS-7.5"
+    'SSH-2.0-5.1 F-Secure SSH Windows NT Server',
+    'SSH-2.0-ReflectionForSecureIT_7.2.1',
+    'SSH-2.0-4.3 SSH Secure Shell Tru64 UNIX',
+    'SSH-2.0-OpenSSH_8.0p1 Debian-9+deb9u3',
+    'SSH-2.0-OpenSSH_7.5 FreeBSD-11',
+    'SSH-2.0-OpenSSH_6.7 Mikrotik_v6.43.12',
+    'SSH-2.0-Cisco-1.25',
+    'SSH-2.0-CiscoIOS_12.2XA',
+    'SSH-2.0-8.47 sshlib: WinSSHD 6.32',
+    'SSH-2.0-HUAWEI-VRP5.150',
+    'SSH-2.0-FortiOS',
+    'SSH-2.0-OpenSSH_3.6p1',
+    'SSH-2.0-NetScreen',
+    'SSH-2.0-ROSSSH',
+    'SSH-2.0-Nortel',
+    'SSH-2.0-Data ONTAP SSH v9.1P5',
+    'SSH-2.0-Axway.Gateway',
+    'SSH-2.0-HP Integrated Lights-Out mpSSH v1.1',
+    'SSH-2.0-Comware-5.20',
+    'SSH-1.5-SSH.0.1',
+    'SSH-2.0-dropbear_2019.78',
+    'SSH-2.0-Adtran_18.03',
+    'SSH-2.0-McAfee Web Gateway SSH',
+    'SSH-2.0-OpenSSH_8.1p1 Raspbian-5',
+    'SSH-2.0-OpenSSH_7.6 Ubuntu-4ubuntu0.3',
+    'SSH-2.0-OpenSSH_6.9 FreeBSD-10.2'
     ]
 
 
