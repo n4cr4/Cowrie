@@ -14,20 +14,22 @@ def handle_event_type(event_type,  events_by_type):
     if event_type:
         events_by_type[event_type] += 1
 
-def handle_ssh_attempt(event_type, log_entry, ssh_attempts_by_date, session_start_times, session_src_ips):
+def handle_ssh_attempt(event_type, log_entry, ssh_attempts_by_date, session_start_times, session_src_ips, ip_addr_count):
     """SSH接続試行の処理"""
     if event_type == "cowrie.session.connect":
         timestamp = log_entry.get("timestamp")
         log_date = parse_timestamp(timestamp).strftime("%Y-%m-%d") if timestamp else None
 
         session_id = log_entry.get("session")
+        src_ip = log_entry.get("src_ip", "不明")
 
         if log_date:
             ssh_attempts_by_date[log_date] += 1
 
         if session_id and timestamp:
             session_start_times[session_id] = parse_timestamp(timestamp)
-            session_src_ips[session_id] = log_entry.get("src_ip", "不明")
+            session_src_ips[session_id] = src_ip
+        ip_addr_count[src_ip] += 1
 
 def handle_login_attempt(event_type, log_entry, actual_login_attempts_by_date):
     """ログイン試行の処理"""
@@ -104,6 +106,7 @@ def analyze_cowrie_logs(log_file):
     failed_commands = defaultdict(int)
     commands_per_session = defaultdict(int)
     client_info =  defaultdict(int)
+    ip_addr_count = defaultdict(int)
     session_start_times = {}
 
     session_durations = {}
@@ -119,7 +122,7 @@ def analyze_cowrie_logs(log_file):
                 event_type = log_entry.get("eventid")
 
                 handle_event_type(event_type, events_by_type)
-                handle_ssh_attempt(event_type, log_entry, ssh_attempts_by_date, session_start_times, session_src_ips)
+                handle_ssh_attempt(event_type, log_entry, ssh_attempts_by_date, session_start_times, session_src_ips, ip_addr_count)
                 handle_login_attempt(event_type, log_entry, actual_login_attempts_by_date)
                 handle_failed_command(event_type, log_entry, failed_commands)
                 handle_command_input(event_type, log_entry, commands_per_session)
@@ -138,7 +141,8 @@ def analyze_cowrie_logs(log_file):
         "no_command_sessions": no_command_sessions[0],
         "session_durations": session_durations,
         "terminal_info": terminal_info,
-        "client_info": client_info
+        "client_info": client_info,
+        "ip_addr_count": ip_addr_count
     }
 
 def aggregate_results(log_file_pattern):
@@ -157,6 +161,7 @@ def aggregate_results(log_file_pattern):
     session_durations = {}
     terminal_info = {}
     input_commands = defaultdict(list)
+    ip_addr_count = defaultdict(int)
 
     for log_file_path in glob.glob(log_file_pattern):
 
@@ -187,10 +192,14 @@ def aggregate_results(log_file_pattern):
                         if command:
                             input_commands[session_id].append(command)
 
+                    if event_type == "cowrie.session.connect":
+                        src_ip = log_entry.get("src_ip", "不明")
+                        ip_addr_count[src_ip] += 1
+
                 except json.JSONDecodeError:
                     print(f"JSONデコードエラー: {line}")
 
-    return analysis_results, session_durations, input_commands, terminal_info
+    return analysis_results, session_durations, input_commands, terminal_info, ip_addr_count
 
 def format_commands(input_commands):
     """input_commandsをコマンドごとにセッションIDを集約した形式に整形"""
@@ -316,8 +325,9 @@ result_path = f"{result_path}/analysis/"
 if not os.path.exists(result_path):
     os.makedirs(result_path)
 
-analysis_results, session_durations, input_commands, terminal_info = aggregate_results(log_file_pattern)
+analysis_results, session_durations, input_commands, terminal_info, ip_addr_count = aggregate_results(log_file_pattern)
 save_to_json(format_commands(input_commands), f"{result_path}/command.json")
+save_to_json(ip_addr_count, f"{result_path}/ip.json")
 save_to_markdown(analysis_results, session_durations, input_commands, terminal_info, f"{result_path}/results.md")
 
 
