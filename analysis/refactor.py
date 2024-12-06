@@ -57,6 +57,18 @@ class CowrieLogAnalyzer:
             print("ログに 'src_ip' カラムが見つかりません。")
             return None
 
+    @logs_loaded_required
+    def analyze_command_failed(self) -> Optional[dict]:
+        """実行に失敗したコマンドを集計"""
+        try:
+            failed_commands = self.logs[self.logs["eventid"] == "cowrie.command.failed"]
+            failed_inputs = failed_commands["input"].value_counts().to_dict()
+            return {"command_failed": failed_inputs}
+        except KeyError:
+            print("ログに 'failed' カラムが見つかりません。")
+            return None
+
+
     def save_to_json(self, data: dict, output_file: str):
         """データをJSON形式で保存"""
         try:
@@ -99,3 +111,7 @@ if __name__ == "__main__":
     ip_stats = analyzer.analyze_ip_stats()
     if ip_stats:
         analyzer.save_to_json(ip_stats, "ip_stats.json")
+
+    command_failed = analyzer.analyze_command_failed()
+    if command_failed:
+        analyzer.save_to_json(command_failed, "command_failed.json")
