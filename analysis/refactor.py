@@ -37,6 +37,14 @@ class CowrieLogAnalyzer:
             print(f"予期しないエラーが発生しました: {e}")
             self.logs = None
 
+    def parse_timestamp(self, timestamp: str) -> str:
+        """タイムスタンプを'yyyy-mm-dd' 形式に変換"""
+        try:
+            return timestamp.split("T")[0]
+        except Exception as e:
+            print(f"タイムスタンプの変換に失敗しました: {e}")
+            return ""
+
     @logs_loaded_required
     def analyze_event_stats(self) -> Optional[dict]:
         """イベントごとの件数を集計"""
@@ -67,6 +75,22 @@ class CowrieLogAnalyzer:
         except KeyError:
             print("ログに 'failed' カラムが見つかりません。")
             return None
+
+    @logs_loaded_required
+    def analyze_daily_connect(self) -> Optional[dict]:
+        """日付別のSSH接続試行回数を集計"""
+        try:
+            ssh_logs = self.logs[self.logs['eventid'] == 'cowrie.session.connect'].copy()
+            ssh_logs['date'] = pd.to_datetime(ssh_logs['timestamp']).dt.strftime('%Y-%m-%d')
+
+            daily_connect_counts = ssh_logs['date'].value_counts().sort_index()
+            daily_connect_stats = {
+                "ssh_attempts_by_date": daily_connect_counts.to_dict()
+            }
+        except KeyError:
+            print("ログに 'connect' カラムが見つかりません。")
+            return None
+        return daily_connect_stats
 
 
     def save_to_json(self, data: dict, output_file: str):
@@ -115,3 +139,7 @@ if __name__ == "__main__":
     command_failed = analyzer.analyze_command_failed()
     if command_failed:
         analyzer.save_to_json(command_failed, "command_failed.json")
+
+    daily_connect = analyzer.analyze_daily_connect()
+    if daily_connect:
+        analyzer.save_to_json(daily_connect, "daily_connect.json")
