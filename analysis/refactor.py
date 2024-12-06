@@ -59,7 +59,8 @@ class CowrieLogAnalyzer:
     def analyze_ip_stats(self) -> Optional[dict]:
         """IPごとの接続回数を集計"""
         try:
-            ip_counts = self.logs["src_ip"].value_counts().to_dict()
+            ssh_logs = self.logs[self.logs["eventid"] == "cowrie.session.connect"]
+            ip_counts = ssh_logs['src_ip'].value_counts().to_dict()
             return {"ips": ip_counts}
         except KeyError:
             print("ログに 'src_ip' カラムが見つかりません。")
