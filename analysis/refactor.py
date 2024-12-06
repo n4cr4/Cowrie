@@ -15,6 +15,15 @@ def logs_loaded_required(func: Callable):
 
     return wrapper
 
+def save_to_json(data: dict, output_file: str):
+    """データをJSON形式で保存"""
+    try:
+        with open(output_file, "w") as f:
+            json.dump(data, f, indent=4)
+        print(f"データを '{output_file}' に保存しました。")
+    except Exception as e:
+        print(f"データの保存中にエラーが発生しました: {e}")
+
 
 class CowrieLogAnalyzer:
     def __init__(self, logfile: str = "cowrie.json"):
@@ -138,18 +147,6 @@ class CowrieLogAnalyzer:
                 return None
             return command_uniq
 
-
-    def save_to_json(self, data: dict, output_file: str):
-        """データをJSON形式で保存"""
-        try:
-            with open(output_file, "w") as f:
-                json.dump(data, f, indent=4)
-            print(f"データを '{output_file}' に保存しました。")
-        except Exception as e:
-            print(f"データの保存中にエラーが発生しました: {e}")
-
-
-# 使用例
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description=(
@@ -175,29 +172,29 @@ if __name__ == "__main__":
     # イベント集計
     event_stats = analyzer.analyze_event_stats()
     if event_stats:
-        analyzer.save_to_json(event_stats, "event_stats.json")
+        save_to_json(event_stats, "event_stats.json")
 
     # IP集計
     ip_stats = analyzer.analyze_ip_stats()
     if ip_stats:
-        analyzer.save_to_json(ip_stats, "ip_stats.json")
+        save_to_json(ip_stats, "ip_stats.json")
 
     command_failed = analyzer.analyze_command_failed()
     if command_failed:
-        analyzer.save_to_json(command_failed, "command_failed.json")
+        save_to_json(command_failed, "command_failed.json")
 
     daily_connect = analyzer.analyze_daily_connect()
     if daily_connect:
-        analyzer.save_to_json(daily_connect, "daily_connect.json")
+        save_to_json(daily_connect, "daily_connect.json")
 
     download_hash = analyzer.analyze_dowload_hash()
     if download_hash:
-        analyzer.save_to_json(download_hash, "download_hash.json")
+        save_to_json(download_hash, "download_hash.json")
 
     command_uniq = analyzer.analyze_uniq_command()
     if command_uniq:
-        analyzer.save_to_json(command_uniq, "command_uniq.json")
+        save_to_json(command_uniq, "command_uniq.json")
 
     client_version = analyzer.analyze_client_version()
     if client_version:
-        analyzer.save_to_json(client_version, "client_version.json")
+        save_to_json(client_version, "client_version.json")
