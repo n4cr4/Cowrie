@@ -6,6 +6,7 @@ import argparse
 
 def logs_loaded_required(func: Callable):
     """Decorator to ensure that logs are loaded"""
+
     def wrapper(self, *args, **kwargs):
         if self.logs is None:
             print("Logs are not loaded.")
@@ -13,6 +14,7 @@ def logs_loaded_required(func: Callable):
         return func(self, *args, **kwargs)
 
     return wrapper
+
 
 def save_to_json(data: dict, output_file: str):
     """Save data to a JSON file"""
@@ -64,10 +66,7 @@ class CowrieLogAnalyzer:
                 client_size_logs = self.logs[self.logs["eventid"] == "cowrie.client.size"]
                 terminal_info = client_size_logs[["session", "width", "height", "src_ip"]].fillna("Unknown").to_dict(orient="records")
 
-            return {
-                "events": event_counts,
-                **({"terminal_info": terminal_info} if terminal_info else {})
-            }
+            return {"events": event_counts, **({"terminal_info": terminal_info} if terminal_info else {})}
         except Exception as e:
             print(f"Error occurred while analyzing event stats: {e}")
             return None
@@ -77,7 +76,7 @@ class CowrieLogAnalyzer:
         """Aggregate connection attempts by IP"""
         try:
             ssh_logs = self.logs[self.logs["eventid"] == "cowrie.session.connect"]
-            ip_counts = ssh_logs['src_ip'].value_counts().to_dict()
+            ip_counts = ssh_logs["src_ip"].value_counts().to_dict()
             return {"ips": ip_counts}
         except Exception as e:
             print(f"Error occurred while analyzing IP stats: {e}")
@@ -109,7 +108,7 @@ class CowrieLogAnalyzer:
     def analyze_dowload_hash(self) -> Optional[dict]:
         """Aggregate download file hashes"""
         try:
-            download_logs = self.logs[self.logs["eventid"].isin(['cowrie.session.file_download', 'cowrie.session.file_upload'])]
+            download_logs = self.logs[self.logs["eventid"].isin(["cowrie.session.file_download", "cowrie.session.file_upload"])]
             download_hash_counts = download_logs["shasum"].value_counts().to_dict()
             return {"download_files": download_hash_counts}
         except Exception as e:
@@ -120,13 +119,11 @@ class CowrieLogAnalyzer:
     def analyze_daily_connect(self) -> Optional[dict]:
         """Aggregate SSH connection attempts by date"""
         try:
-            ssh_logs = self.logs[self.logs['eventid'] == 'cowrie.session.connect'].copy()
-            ssh_logs['date'] = pd.to_datetime(ssh_logs['timestamp']).dt.strftime('%Y-%m-%d')
+            ssh_logs = self.logs[self.logs["eventid"] == "cowrie.session.connect"].copy()
+            ssh_logs["date"] = pd.to_datetime(ssh_logs["timestamp"]).dt.strftime("%Y-%m-%d")
 
-            daily_connect_counts = ssh_logs['date'].value_counts().sort_index()
-            daily_connect_stats = {
-                "ssh_attempts_by_date": daily_connect_counts.to_dict()
-            }
+            daily_connect_counts = ssh_logs["date"].value_counts().sort_index()
+            daily_connect_stats = {"ssh_attempts_by_date": daily_connect_counts.to_dict()}
         except Exception as e:
             print(f"Error occurred while analyzing daily connections: {e}")
             return None
@@ -136,32 +133,18 @@ class CowrieLogAnalyzer:
     def analyze_uniq_command(self) -> Optional[dict]:
         """Aggregate unique commands executed"""
         try:
-            command_logs = self.logs[self.logs['eventid'] == "cowrie.command.input"]
-            command_uniq_df = command_logs.groupby('input')['session'].agg(list).reset_index()
-            command_uniq = {
-                "commands": command_uniq_df.to_dict(orient="records")
-            }
+            command_logs = self.logs[self.logs["eventid"] == "cowrie.command.input"]
+            command_uniq_df = command_logs.groupby("input")["session"].agg(list).reset_index()
+            command_uniq = {"commands": command_uniq_df.to_dict(orient="records")}
         except Exception as e:
             print(f"Error occurred while analyzing unique commands: {e}")
             return None
         return command_uniq
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description=(
-            "Cowrie log JSON file reader.\n"
-            "Ensure the log file is formatted correctly using 'jq -s '.' log.json'."
-        )
-    )
-    parser.add_argument(
-        "--logfile", 
-        type=str, 
-        default="cowrie.json", 
-        help=(
-            "Path to the Cowrie log file (default: cowrie.json).\n"
-            "The file should be a single JSON array."
-        )
-    )
+    parser = argparse.ArgumentParser(description=("Cowrie log JSON file reader.\n" "Ensure the log file is formatted correctly using 'jq -s '.' log.json'."))
+    parser.add_argument("--logfile", type=str, default="cowrie.json", help=("Path to the Cowrie log file (default: cowrie.json).\n" "The file should be a single JSON array."))
     args = parser.parse_args()
 
     analyzer = CowrieLogAnalyzer(args.logfile)
