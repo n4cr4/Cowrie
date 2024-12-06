@@ -8,42 +8,37 @@ from typing import Any
 
 import requests
 
+# Get API key from environment variable
 API_KEY = str(os.getenv("API_KEY"))
 if not API_KEY:
-    raise ValueError("環境変数 'API_KEY' が設定されていません。")
+    raise ValueError("Environment variable 'API_KEY' is not set.")
 HASH_LIST_PATH: Path = Path("download_hash.json")
 DOWNLOAD_DIR: Path = Path("vt_reports")
 DOWNLOAD_DIR.mkdir(exist_ok=True)
 VT_API_URL: str = "https://www.virustotal.com/api/v3/files/"
 
-# init logger
-formatter ="%(asctime)s - %(levelname)8s - %(message)s"
-basicConfig(
-    stream=sys.stdout,
-    format=formatter,
-    level=INFO
-)
+# Initialize logger
+formatter = "%(asctime)s - %(levelname)8s - %(message)s"
+basicConfig(stream=sys.stdout, format=formatter, level=INFO)
 logger = getLogger(__name__)
 
 
 def call_vt_api(sha256: str) -> dict[str, Any] | None:
-    """Call VirusTotal API and return the response."""
-
+    """Call the VirusTotal API and return the response."""
     headers: dict[str, str] = {"x-apikey": API_KEY}
-    logger.info(f"requesting {sha256}")
-    # request to VirusTotal
+    logger.info(f"Requesting {sha256}")
+
+    # Send a request to VirusTotal
     response = requests.get(VT_API_URL + sha256, headers=headers)
 
-    # handle success
+    # Handle successful response
     if response.status_code == 200:
         return response.json()
-    # handle QuotaExceededError
+    # Handle QuotaExceededError
     elif response.status_code == 429:
-        logger.warning(
-            "QuotaExceededError... waiting until UTC 00:00 to request again"
-        )
-        wait_until_utc_midnight()
-        return call_vt_api(sha256)  # retry
+        logger.warning("Quota exceeded... waiting until UTC midnight to request again.")
+        wait_until_utc_midnight()  # Wait until next UTC midnight
+        return call_vt_api(sha256)  # Retry the request
     else:
         logger.error(f"Error: {response.status_code} {response.text}")
         return None
@@ -62,7 +57,8 @@ def wait_until_utc_midnight() -> None:
         second=0,
         tzinfo=timezone.utc,
     )
-    # calculate wait seconds
+
+    # Calculate the number of seconds to wait until midnight
     wait_seconds: int = (midnight - now).seconds
     time.sleep(wait_seconds)
 
@@ -73,19 +69,21 @@ def main() -> None:
         for sha256, _ in loaded_json["download_files"].items():
             response: dict[str, Any] | None = call_vt_api(sha256)
 
+            # Skip if the response is None (indicating an error or quota exceeded)
             if response is None:
                 continue
 
             # Save the response to a file
             file_path: Path = DOWNLOAD_DIR.joinpath(sha256 + ".json")
             with file_path.open("w") as f:
-                f.write(json.dumps(response))
-                logger.info(f"saved {sha256}.json")
+                json.dump(response, f, indent=4)  # Pretty print the JSON
+                logger.info(f"Saved {sha256}.json")
 
-            time.sleep(15)  # 4 requests per minute
+            # Wait for 15 seconds to avoid hitting the rate limit
+            time.sleep(15)
 
 
 if __name__ == "__main__":
-    logger.info("start")
+    logger.info("Start")
     main()
-    logger.info("end")
+    logger.info("End")
