@@ -11,7 +11,7 @@ import requests
 API_KEY = str(os.getenv("API_KEY"))
 if not API_KEY:
     raise ValueError("環境変数 'API_KEY' が設定されていません。")
-HASH_LIST_PATH: Path = Path("download.txt")
+HASH_LIST_PATH: Path = Path("download_hash.json")
 DOWNLOAD_DIR: Path = Path("vt_reports")
 DOWNLOAD_DIR.mkdir(exist_ok=True)
 VT_API_URL: str = "https://www.virustotal.com/api/v3/files/"
@@ -69,8 +69,8 @@ def wait_until_utc_midnight() -> None:
 
 def main() -> None:
     with HASH_LIST_PATH.open("r") as f:
-        for line in f:
-            sha256: str = line.strip().strip('"')
+        loaded_json = json.load(f)
+        for sha256, _ in loaded_json["download_files"].items():
             response: dict[str, Any] | None = call_vt_api(sha256)
 
             if response is None:
