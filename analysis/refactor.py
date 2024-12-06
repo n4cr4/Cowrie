@@ -77,6 +77,17 @@ class CowrieLogAnalyzer:
             return None
 
     @logs_loaded_required
+    def analyze_client_version(self) -> Optional[dict]:
+        """クライアントバージョンごとの件数を集計"""
+        try:
+            version_logs = self.logs[self.logs["eventid"] == "cowrie.client.version"]
+            version_counts = version_logs["version"].value_counts().to_dict()
+            return {"client_versions": version_counts}
+        except KeyError:
+            print("ログに 'version' カラムが見つかりません。")
+            return None
+
+    @logs_loaded_required
     def analyze_command_failed(self) -> Optional[dict]:
         """実行に失敗したコマンドを集計"""
         try:
@@ -186,3 +197,7 @@ if __name__ == "__main__":
     command_uniq = analyzer.analyze_uniq_command()
     if command_uniq:
         analyzer.save_to_json(command_uniq, "command_uniq.json")
+
+    client_version = analyzer.analyze_client_version()
+    if client_version:
+        analyzer.save_to_json(client_version, "client_version.json")
