@@ -47,12 +47,22 @@ class CowrieLogAnalyzer:
 
     @logs_loaded_required
     def analyze_event_stats(self) -> Optional[dict]:
-        """イベントごとの件数を集計"""
+        """イベントごとの件数を集計し、特定のイベント情報を抽出"""
         try:
             event_counts = self.logs["eventid"].value_counts().to_dict()
-            return {"events": event_counts}
-        except KeyError:
-            print("ログに 'eventid' カラムが見つかりません。")
+
+            terminal_info = []
+            if "cowrie.client.size" in event_counts:
+                client_size_logs = self.logs[self.logs["eventid"] == "cowrie.client.size"]
+                terminal_info = client_size_logs[["session", "width", "height", "src_ip"]].fillna("不明").to_dict(orient="records")
+
+            return {
+                "events": event_counts,
+                **({"terminal_info": terminal_info} if terminal_info else {})
+            }
+        
+        except KeyError as e:
+            print(f"ログの解析中にエラーが発生しました: {e}")
             return None
 
     @logs_loaded_required
