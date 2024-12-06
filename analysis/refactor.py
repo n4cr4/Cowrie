@@ -78,6 +78,17 @@ class CowrieLogAnalyzer:
             return None
 
     @logs_loaded_required
+    def analyze_dowload_hash(self) -> Optional[dict]:
+        """ダウンロードファイルのハッシュ値を集計"""
+        try:
+            download_logs = self.logs[self.logs["eventid"].isin(['cowrie.session.file_download', 'cowrie.session.file_upload'])]
+            download_hash_counts = download_logs["shasum"].value_counts().to_dict()
+            return {"download files": download_hash_counts}
+        except KeyError:
+            print("ログに 'file_download', 'file_upload' カラムが見つかりません。")
+            return None
+
+    @logs_loaded_required
     def analyze_daily_connect(self) -> Optional[dict]:
         """日付別のSSH接続試行回数を集計"""
         try:
@@ -144,3 +155,7 @@ if __name__ == "__main__":
     daily_connect = analyzer.analyze_daily_connect()
     if daily_connect:
         analyzer.save_to_json(daily_connect, "daily_connect.json")
+
+    download_hash = analyzer.analyze_dowload_hash()
+    if download_hash:
+        analyzer.save_to_json(download_hash, "download_hash.json")
