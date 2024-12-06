@@ -104,6 +104,19 @@ class CowrieLogAnalyzer:
             return None
         return daily_connect_stats
 
+    @logs_loaded_required
+    def analyze_uniq_command(self) -> Optional[dict]:
+            try:
+                command_logs = self.logs[self.logs['eventid'] == "cowrie.command.input"]
+                command_uniq_df = command_logs.groupby('input')['session'].agg(list).reset_index()
+                command_uniq = {
+                "commands": command_uniq_df.to_dict(orient="records")
+                }
+            except KeyError:
+                print("ログに 'input' カラムが見つかりません。")
+                return None
+            return command_uniq
+
 
     def save_to_json(self, data: dict, output_file: str):
         """データをJSON形式で保存"""
@@ -159,3 +172,7 @@ if __name__ == "__main__":
     download_hash = analyzer.analyze_dowload_hash()
     if download_hash:
         analyzer.save_to_json(download_hash, "download_hash.json")
+
+    command_uniq = analyzer.analyze_uniq_command()
+    if command_uniq:
+        analyzer.save_to_json(command_uniq, "command_uniq.json")
