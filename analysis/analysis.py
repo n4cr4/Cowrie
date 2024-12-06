@@ -1,336 +1,186 @@
-import glob
+import pandas as pd
 import json
-import os
-from collections import defaultdict
-from datetime import datetime
-
-def parse_timestamp(timestamp):
-    """タイムスタンプをdatetimeオブジェクトに変換する"""
-    return datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f%z") if timestamp else None
-
-
-def handle_event_type(event_type,  events_by_type):
-    """イベントタイプを集計"""
-    if event_type:
-        events_by_type[event_type] += 1
-
-def handle_ssh_attempt(event_type, log_entry, ssh_attempts_by_date, session_start_times, session_src_ips, ip_addr_count):
-    """SSH接続試行の処理"""
-    if event_type == "cowrie.session.connect":
-        timestamp = log_entry.get("timestamp")
-        log_date = parse_timestamp(timestamp).strftime("%Y-%m-%d") if timestamp else None
-
-        session_id = log_entry.get("session")
-        src_ip = log_entry.get("src_ip", "不明")
-
-        if log_date:
-            ssh_attempts_by_date[log_date] += 1
-
-        if session_id and timestamp:
-            session_start_times[session_id] = parse_timestamp(timestamp)
-            session_src_ips[session_id] = src_ip
-        ip_addr_count[src_ip] += 1
-
-def handle_login_attempt(event_type, log_entry, actual_login_attempts_by_date):
-    """ログイン試行の処理"""
-    if event_type in ("cowrie.login.success", "cowrie.login.failed"):
-        timestamp = log_entry.get("timestamp")
-        log_date = parse_timestamp(timestamp).strftime("%Y-%m-%d") if timestamp else None
-        if log_date:
-            actual_login_attempts_by_date[log_date] += 1
-
-
-def handle_failed_command(event_type, log_entry, failed_commands):
-    """失敗したコマンドの処理"""
-    if event_type == "cowrie.command.failed":
-        command = log_entry.get("input")
-        if command:
-            failed_commands[command] += 1
-
-def handle_command_input(event_type, log_entry, commands_per_session):
-    """コマンド入力の処理"""
-    if event_type == "cowrie.command.input":
-        session_id = log_entry.get("session")
-        if session_id:
-            commands_per_session[session_id] += 1
-
-def handle_session_closed(event_type, log_entry, session_start_times, commands_per_session, no_command_sessions, session_durations, session_src_ips):
-    """セッション終了時の処理"""
-    if event_type == "cowrie.session.closed":
-        session_id = log_entry.get("session")
-        timestamp = log_entry.get("timestamp")
-
-        if session_id and commands_per_session[session_id] == 0:
-            no_command_sessions[0] += 1
-
-        if session_id in session_start_times and timestamp:
-            start_time = session_start_times[session_id]
-            end_time = parse_timestamp(timestamp)
-            duration = (end_time - start_time).total_seconds() if start_time and end_time else 0
-
-            session_durations[session_id] = {
-                "duration": duration,
-                "commands": commands_per_session[session_id],
-                "src_ip": session_src_ips.get(session_id, "不明"),
-            }
-
-def handle_manual_connection(event_type, log_entry, session_src_ips, terminal_info):
-    """仮想端末情報の処理"""
-    event_type = log_entry.get("eventid")
-    session_id = log_entry.get("session")
-    
-    if event_type == "cowrie.client.size":
-        width = log_entry.get("width")
-        height = log_entry.get("height")
-
-        terminal_info[session_id] = {
-        "width": width,
-        "height": height,
-        "src_ip": session_src_ips.get(session_id, "不明")
-        }
-
-def handle_client(event_type, log_entry, client_info):
-    """SSHクライアントの種類の分析"""
-    event_type = log_entry.get("eventid")
-
-    if event_type == "cowrie.client.version":
-        version = log_entry.get("version")
-        if version:
-            client_info[version] += 1
-
-def analyze_cowrie_logs(log_file):
-    """Cowrieログファイルを解析し、集計を行う"""
-    events_by_type = defaultdict(int)
-    ssh_attempts_by_date = defaultdict(int)
-    actual_login_attempts_by_date = defaultdict(int)
-    failed_commands = defaultdict(int)
-    commands_per_session = defaultdict(int)
-    client_info =  defaultdict(int)
-    ip_addr_count = defaultdict(int)
-    session_start_times = {}
-
-    session_durations = {}
-    terminal_info = {}
-
-    session_src_ips = {}
-    no_command_sessions = [0]
-
-    with open(log_file, "r") as f:
-        for line in f:
-            try:
-                log_entry = json.loads(line)
-                event_type = log_entry.get("eventid")
-
-                handle_event_type(event_type, events_by_type)
-                handle_ssh_attempt(event_type, log_entry, ssh_attempts_by_date, session_start_times, session_src_ips, ip_addr_count)
-                handle_login_attempt(event_type, log_entry, actual_login_attempts_by_date)
-                handle_failed_command(event_type, log_entry, failed_commands)
-                handle_command_input(event_type, log_entry, commands_per_session)
-                handle_session_closed(event_type, log_entry, session_start_times, commands_per_session, no_command_sessions, session_durations, session_src_ips)
-                handle_manual_connection(event_type, log_entry, session_src_ips, terminal_info)
-                handle_client(event_type, log_entry, client_info)
-
-            except json.JSONDecodeError:
-                print(f"JSONデコードエラー: {line}")
-
-    return {
-        "events_by_type": events_by_type,
-        "ssh_attempts_by_date": ssh_attempts_by_date,
-        "actual_login_attempts_by_date": actual_login_attempts_by_date,
-        "failed_commands": failed_commands,
-        "no_command_sessions": no_command_sessions[0],
-        "session_durations": session_durations,
-        "terminal_info": terminal_info,
-        "client_info": client_info,
-        "ip_addr_count": ip_addr_count
-    }
-
-def aggregate_results(log_file_pattern):
-    """複数のログファイルを集計し、結果を返す"""
-
-
-    analysis_results = {
-        "events_by_type": defaultdict(int),
-        "ssh_attempts_by_date": defaultdict(int),
-        "actual_login_attempts_by_date": defaultdict(int),
-        "failed_commands": defaultdict(int),
-        "client_info": defaultdict(int),
-        "no_command_sessions": 0,  # no_command_sessions は整数で保持
-    }
-
-    session_durations = {}
-    terminal_info = {}
-    input_commands = defaultdict(list)
-    ip_addr_count = defaultdict(int)
-
-    for log_file_path in glob.glob(log_file_pattern):
-
-        result = analyze_cowrie_logs(log_file_path)
-
-        for key in analysis_results:
-
-            # 'no_command_sessions' は整数として処理
-            if key == "no_command_sessions":
-                analysis_results[key] += result[key]
-            else:
-                for k, v in result[key].items():
-                    analysis_results[key][k] += v
-
-
-        session_durations.update(result["session_durations"])
-        terminal_info.update(result["terminal_info"])
-
-        with open(log_file_path, "r") as f:
-            for line in f:
-                try:
-                    log_entry = json.loads(line)
-                    event_type = log_entry.get("eventid")
-                    session_id = log_entry.get("session")
-
-                    if event_type == "cowrie.command.input" and session_id:
-                        command = log_entry.get("input")
-                        if command:
-                            input_commands[session_id].append(command)
-
-                    if event_type == "cowrie.session.connect":
-                        src_ip = log_entry.get("src_ip", "不明")
-                        ip_addr_count[src_ip] += 1
-
-                except json.JSONDecodeError:
-                    print(f"JSONデコードエラー: {line}")
-
-    return analysis_results, session_durations, input_commands, terminal_info, ip_addr_count
-
-def format_commands(input_commands):
-    """input_commandsをコマンドごとにセッションIDを集約した形式に整形"""
-    command_to_sessions = defaultdict(lambda: {"sessions": []})
-
-    # input_commandsの各セッションIDごとのコマンドを集計
-    for session_id, commands in input_commands.items():
-        for command in commands:
-            command_to_sessions[command]["sessions"].append(session_id)
-
-    # コマンドごとの識別子を作成（コマンドそのものをキーにしても良い）
-    result_commands = {f"command_{i}": {"command": cmd, "sessions": data["sessions"]}
-                       for i, (cmd, data) in enumerate(command_to_sessions.items())}
-    
-    return result_commands
-
-def save_to_json(data, filename):
-    """辞書データをJSON形式でファイルに保存"""
-    with open(filename, "w") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
-
-def save_to_markdown(analysis_results, session_durations, input_commands, terminal_info, filename):
-
-    """解析結果をMarkdown形式でファイルに保存（表形式とインラインコード使用）"""
-    with open(filename, "w") as f:
-        # イベントタイプ別の集計
-        f.write("# イベントタイプ別の集計\n")
-
-        f.write("| イベントタイプ | 件数 |\n")
-        f.write("| ------------- | ---- |\n")
-        for event_type, count in analysis_results["events_by_type"].items():
-            f.write(f"| {event_type} | {count} 件 |\n")
-
-        # 日付別のSSH接続試行
-        f.write("\n# 日付別のSSH接続試行\n")
-        f.write("| 日付 | SSH接続試行数 |\n")
-        f.write("| ---- | ------------- |\n")
-        for date, count in analysis_results["ssh_attempts_by_date"].items():
-            f.write(f"| {date} | {count} 件 |\n")
-
-        # 日付別のログイン試行
-        f.write("\n# 日付別のログイン試行\n")
-        f.write("| 日付 | ログイン試行数 |\n")
-        f.write("| ---- | -------------- |\n")
-        for date, count in analysis_results["actual_login_attempts_by_date"].items():
-            f.write(f"| {date} | {count} 件 |\n")
-
-        # 実行が失敗したコマンド
-        f.write("\n# 実行が失敗したコマンド\n")
-        f.write("| コマンド | 失敗回数 |\n")
-        f.write("| -------- | -------- |\n")
-        for command, count in analysis_results["failed_commands"].items():
-            f.write(f"| `{command}` | {count} 回 |\n")
-
-        # コマンド実行なしで終了したセッション数
-        f.write(f"\n# コマンド実行なしで終了したセッション数\n{analysis_results['no_command_sessions']} 件\n")
-
-        # 仮想端末情報
-        f.write("# 仮想端末情報\n\n")
-        f.write("| セッションID | 幅 (Width) | 高さ (Height) | 接続元IP (src_ip) |\n")
-        f.write("| ------------ | --------- | ------------ | ---------------- |\n")
-
-        # `terminal_info`の内容を表として出力
-        for session_id, info in terminal_info.items():
-            width = info.get("width", "不明")
-            height = info.get("height", "不明")
-            src_ip = info.get("src_ip", "不明")
-            
-            # 各行のデータをMarkdown形式で書き込む
-            f.write(f"| {session_id} | {width} | {height} | {src_ip} |\n")
-
-        # SSHクライアントの情報
-        f.write("\n# SSHクライアント\n")
-        f.write("| クライアント | 接続試行 |\n")
-        f.write("| -------- | -------- |\n")
-        for version, count in analysis_results["client_info"].items():
-            version = version.replace('|', '\\|')
-            f.write(f"| ``{version}`` | {count} 回 |\n")
-
-        # コマンド実行セッションの接続時間
-        command_sessions_durations = [
-
-            details["duration"] for details in session_durations.values() if details["commands"] > 0
-        ]
-        if command_sessions_durations:
-            avg_duration = sum(command_sessions_durations) / len(command_sessions_durations)
-            min_duration = min(command_sessions_durations)
-            max_duration = max(command_sessions_durations)
-
-            f.write("\n# コマンド実行セッションの接続時間\n")
-            f.write(f"- **平均**: {avg_duration:.2f} 秒\n")
-            f.write(f"- **最小**: {min_duration:.2f} 秒\n")
-            f.write(f"- **最大**: {max_duration:.2f} 秒\n")
-
-        # 接続時間が長いセッション TOP10
-        top_10_sessions = sorted(
-
-            session_durations.items(), key=lambda x: x[1]["duration"], reverse=True
-        )[:10]
-
-
-        if top_10_sessions:
-            f.write("\n# 接続時間が長いセッション TOP10\n")
-            f.write("| セッションID | 接続時間（秒） | コマンド実行回数 | 入力コマンド | src_ip |\n")
-            f.write("| ------------ | -------------- | ---------------- | ----------- | ------- |\n")
-            for session_id, details in top_10_sessions:
-                duration = details["duration"]
-                commands = details["commands"]
-                src_ip = details["src_ip"]
-
-                esc_str = [cmd.replace("|", "\\|") for cmd in input_commands.get(session_id, [])]
-                commands_str = ", ".join([f"`{cmd}`" for cmd in esc_str]) or "なし"
-
-                f.write(f"| {session_id} | {duration:.2f} | {commands} | {commands_str} | {src_ip} |\n")
-        else:
-            f.write("\nコマンド実行セッションはありませんでした。\n")
-
-# メイン処理
-log_path = input("cowrie log dir path: ")
-log_file_pattern = f"{log_path}/cowrie.json*"
-result_path = input("analysis result dir path: ")
-result_path = f"{result_path}/analysis/"
-if not os.path.exists(result_path):
-    os.makedirs(result_path)
-
-analysis_results, session_durations, input_commands, terminal_info, ip_addr_count = aggregate_results(log_file_pattern)
-save_to_json(format_commands(input_commands), f"{result_path}/command.json")
-save_to_json(ip_addr_count, f"{result_path}/ip.json")
-save_to_markdown(analysis_results, session_durations, input_commands, terminal_info, f"{result_path}/results.md")
-
-
-print("command.json and analysis_results.md have been created.")
-
-
+from typing import Optional, Callable
+import argparse
+
+
+def logs_loaded_required(func: Callable):
+    """Decorator to ensure that logs are loaded"""
+
+    def wrapper(self, *args, **kwargs):
+        if self.logs is None:
+            print("Logs are not loaded.")
+            return None
+        return func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def save_to_json(data: dict, output_file: str):
+    """Save data to a JSON file"""
+    try:
+        with open(output_file, "w") as f:
+            json.dump(data, f, indent=4)
+        print(f"Data saved to '{output_file}'.")
+    except Exception as e:
+        print(f"Error occurred while saving data: {e}")
+
+
+class CowrieLogAnalyzer:
+    def __init__(self, logfile: str = "cowrie.json"):
+        """Initialize with the log file path"""
+        self.logfile = logfile
+        self.logs: Optional[pd.DataFrame] = None
+
+    def load_logs(self):
+        """Load log file into a DataFrame"""
+        try:
+            self.logs = pd.read_json(self.logfile)
+            print(f"Log file '{self.logfile}' loaded successfully.")
+        except json.JSONDecodeError as e:
+            print(f"JSON Decode Error: {e}")
+            self.logs = None
+        except FileNotFoundError:
+            print(f"File '{self.logfile}' not found.")
+            self.logs = None
+        except Exception as e:
+            print(f"Unexpected error occurred: {e}")
+            self.logs = None
+
+    def parse_timestamp(self, timestamp: str) -> str:
+        """Convert timestamp to 'yyyy-mm-dd' format"""
+        try:
+            return timestamp.split("T")[0]
+        except Exception as e:
+            print(f"Failed to convert timestamp: {e}")
+            return ""
+
+    @logs_loaded_required
+    def analyze_event_stats(self) -> Optional[dict]:
+        """Aggregate event counts and extract specific event data"""
+        try:
+            event_counts = self.logs["eventid"].value_counts().to_dict()
+
+            terminal_info = []
+            if "cowrie.client.size" in event_counts:
+                client_size_logs = self.logs[self.logs["eventid"] == "cowrie.client.size"]
+                terminal_info = client_size_logs[["session", "width", "height", "src_ip"]].fillna("Unknown").to_dict(orient="records")
+
+            return {"events": event_counts, **({"terminal_info": terminal_info} if terminal_info else {})}
+        except Exception as e:
+            print(f"Error occurred while analyzing event stats: {e}")
+            return None
+
+    @logs_loaded_required
+    def analyze_ip_stats(self) -> Optional[dict]:
+        """Aggregate connection attempts by IP"""
+        try:
+            ssh_logs = self.logs[self.logs["eventid"] == "cowrie.session.connect"]
+            ip_counts = ssh_logs["src_ip"].value_counts().to_dict()
+            return {"ips": ip_counts}
+        except Exception as e:
+            print(f"Error occurred while analyzing IP stats: {e}")
+            return None
+
+    @logs_loaded_required
+    def analyze_client_version(self) -> Optional[dict]:
+        """Aggregate client version counts"""
+        try:
+            version_logs = self.logs[self.logs["eventid"] == "cowrie.client.version"]
+            version_counts = version_logs["version"].value_counts().to_dict()
+            return {"client_versions": version_counts}
+        except Exception as e:
+            print(f"Error occurred while analyzing client versions: {e}")
+            return None
+
+    @logs_loaded_required
+    def analyze_command_failed(self) -> Optional[dict]:
+        """Aggregate failed commands"""
+        try:
+            failed_commands = self.logs[self.logs["eventid"] == "cowrie.command.failed"]
+            failed_inputs = failed_commands["input"].value_counts().to_dict()
+            return {"command_failed": failed_inputs}
+        except Exception as e:
+            print(f"Error occurred while analyzing failed commands: {e}")
+            return None
+
+    @logs_loaded_required
+    def analyze_dowload_hash(self) -> Optional[dict]:
+        """Aggregate download file hashes"""
+        try:
+            download_logs = self.logs[self.logs["eventid"].isin(["cowrie.session.file_download", "cowrie.session.file_upload"])]
+            download_hash_counts = download_logs["shasum"].value_counts().to_dict()
+            return {"download_files": download_hash_counts}
+        except Exception as e:
+            print(f"Error occurred while analyzing download hashes: {e}")
+            return None
+
+    @logs_loaded_required
+    def analyze_daily_connect(self) -> Optional[dict]:
+        """Aggregate SSH connection attempts by date"""
+        try:
+            ssh_logs = self.logs[self.logs["eventid"] == "cowrie.session.connect"].copy()
+            ssh_logs["date"] = pd.to_datetime(ssh_logs["timestamp"]).dt.strftime("%Y-%m-%d")
+
+            daily_connect_counts = ssh_logs["date"].value_counts().sort_index()
+            daily_connect_stats = {"ssh_attempts_by_date": daily_connect_counts.to_dict()}
+        except Exception as e:
+            print(f"Error occurred while analyzing daily connections: {e}")
+            return None
+        return daily_connect_stats
+
+    @logs_loaded_required
+    def analyze_uniq_command(self) -> Optional[dict]:
+        """Aggregate unique commands executed"""
+        try:
+            command_logs = self.logs[self.logs["eventid"] == "cowrie.command.input"]
+            command_uniq_df = command_logs.groupby("input")["session"].agg(list).reset_index()
+            command_uniq = {"commands": command_uniq_df.to_dict(orient="records")}
+        except Exception as e:
+            print(f"Error occurred while analyzing unique commands: {e}")
+            return None
+        return command_uniq
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=("Cowrie log JSON file reader.\n" "Ensure the log file is formatted correctly using 'jq -s '.' log.json'."))
+    parser.add_argument("--logfile", type=str, default="cowrie.json", help=("Path to the Cowrie log file (default: cowrie.json).\n" "The file should be a single JSON array."))
+    args = parser.parse_args()
+
+    analyzer = CowrieLogAnalyzer(args.logfile)
+    analyzer.load_logs()
+
+    # Event stats aggregation
+    event_stats = analyzer.analyze_event_stats()
+    if event_stats:
+        save_to_json(event_stats, "event_stats.json")
+
+    # IP stats aggregation
+    ip_stats = analyzer.analyze_ip_stats()
+    if ip_stats:
+        save_to_json(ip_stats, "ip_stats.json")
+
+    # Command failed aggregation
+    command_failed = analyzer.analyze_command_failed()
+    if command_failed:
+        save_to_json(command_failed, "command_failed.json")
+
+    # Daily connection aggregation
+    daily_connect = analyzer.analyze_daily_connect()
+    if daily_connect:
+        save_to_json(daily_connect, "daily_connect.json")
+
+    # Download hash aggregation
+    download_hash = analyzer.analyze_dowload_hash()
+    if download_hash:
+        save_to_json(download_hash, "download_hash.json")
+
+    # Unique command aggregation
+    command_uniq = analyzer.analyze_uniq_command()
+    if command_uniq:
+        save_to_json(command_uniq, "command_uniq.json")
+
+    # Client version aggregation
+    client_version = analyzer.analyze_client_version()
+    if client_version:
+        save_to_json(client_version, "client_version.json")
