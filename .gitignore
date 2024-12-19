@@ -1,0 +1,12 @@
+# Ignore Windows identifier
+Thumbs.db
+Desktop.ini
+
+# Ignore SSH key files
+*.pem
+*.pub
+
+# Ignore Zone identifier
+Zone.Identifier
+
+venv
