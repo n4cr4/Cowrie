@@ -15,7 +15,7 @@ def lambda_handler(event, context):
 
         # コマンド内容
         commands = [
-            "cd /home/admin/cowrie-docker",
+            "cd /home/admin/Cowrie",
             "sudo docker compose cp cowrie:/cowrie/cowrie-git/var .",
             f"aws s3 cp var/log/cowrie/ s3://cowrie-log/{instance_name}/ --recursive"
         ]
