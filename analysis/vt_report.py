@@ -7,13 +7,17 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Get API key from environment variable
 API_KEY = str(os.getenv("API_KEY"))
 if not API_KEY:
     raise ValueError("Environment variable 'API_KEY' is not set.")
-HASH_LIST_PATH: Path = Path("download_hash.json")
-DOWNLOAD_DIR: Path = Path("vt_reports")
+HASH_LIST_PATH: Path = Path(os.getenv("HASH_LIST_PATH", "download_hash.json"))
+DOWNLOAD_DIR: Path = Path(os.getenv("DOWNLOAD_DIR", "../reports"))
 DOWNLOAD_DIR.mkdir(exist_ok=True)
 VT_API_URL: str = "https://www.virustotal.com/api/v3/files/"
 
