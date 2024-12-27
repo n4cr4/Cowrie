@@ -10,3 +10,6 @@ Desktop.ini
 Zone.Identifier
 
 venv
+
+logs/*
+analysis/.env
