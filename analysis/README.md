@@ -24,7 +24,7 @@
     ./merge_logs.sh
     ```
 
-5. `analysis.py` を実行してログファイルを分析します。
+5. `analyze_logs.sh` を実行してログファイルを分析します。
     ```bash
-    python analysis.py
+    ./analyze_logs.sh
     ```
