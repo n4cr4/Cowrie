@@ -11,5 +11,7 @@ for dir in ../logs/COWRIE*/reports; do
     id: (.data.id // ""),
     last_analysis_status: (.data.attributes.last_analysis_status // {})
   })' *.json > ../vt.json
+  jq '[.[] | .label] | group_by(.) | map({label: .[0], count: length})' ../vt.json > ../vt_label.json
+  jq '[.[] | .category[]] | group_by(.) | map({category: .[0], count: length})' ../vt.json > ../vt_category.json
   cd - || exit
 done
