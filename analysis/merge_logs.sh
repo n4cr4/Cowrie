@@ -28,7 +28,7 @@ merged_dir="../logs/COWRIE_RANDOM_SSH"
 files=$(find ../logs -type f -name "cowrie.json*" -path "../logs/COWRIE_RANDOM_SSH*")
 merge_json_files "$merged_dir/merged.json" $files
 
-echo "All JSON files have been merged."
+echo "CowrieRandomSSH JSON files have been merged."
 
 for dir in ../logs/CowrieShortTerm-*; do
     merged_dir="$dir"
