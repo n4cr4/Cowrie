@@ -32,7 +32,7 @@ export API_KEY=your_api_key
 ```
 7. `get_vt_report.sh`を実行してファイル解析を行います。
 ```bash
-./get_vt_report.sh`
+./get_vt_report.sh
 ```
 8. `merge_vt_report.sh`を実行して必要な情報を抽出します。
 ```bash
