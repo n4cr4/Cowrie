@@ -29,3 +29,10 @@ files=$(find ../logs -type f -name "cowrie.json*" -path "../logs/COWRIE_RANDOM_S
 merge_json_files "$merged_dir/merged.json" $files
 
 echo "All JSON files have been merged."
+
+for dir in ../logs/CowrieShortTerm-*; do
+    merged_dir="$dir"
+    files=$(find "$dir" -type f -name "cowrie.json*")
+    merge_json_files "$merged_dir/merged.json" $files
+    echo "Merged JSON files in $dir"
+done

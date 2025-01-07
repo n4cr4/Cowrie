@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for dir in ../logs/COWRIE*; do
+for dir in ../logs/*; do
   cd "$dir" || exit
   if [ -f "merged.json" ]; then
     python ../../analysis/analysis.py --logfile merged.json
