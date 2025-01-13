@@ -26,7 +26,8 @@ plt.plot(longterm_dates, longterm_counts, marker='o', label="LongTerm", color='b
 num = 1
 for shortterm_dir in get_shortterm_dirs():
     shortterm_dates, shortterm_counts = get_dates_counts_from_path(shortterm_dir + '/daily_connect.json')
-    plt.plot(shortterm_dates, shortterm_counts, marker='o', label=f"ShortTerm{num}")
+    # plt.plot(shortterm_dates, shortterm_counts, marker='o', label=f"ShortTerm{num}")
+    plt.plot(shortterm_dates, shortterm_counts, marker='o')
     num += 1
 
 plt.xlabel('Date')
