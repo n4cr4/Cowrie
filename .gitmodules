@@ -1,0 +1,3 @@
+[submodule "analysis/sigma"]
+	path = analysis/sigma
+	url = https://github.com/SigmaHQ/sigma.git
