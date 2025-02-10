@@ -16,14 +16,16 @@ def get_dates_counts_from_path(path):
 longterm_dates, longterm_counts = get_dates_counts_from_path('../logs/COWRIE_BASE/daily_connect.json')
 randomssh_dates, randomssh_counts = get_dates_counts_from_path('../logs/COWRIE_RANDOM_SSH/daily_connect.json')
 
+dates = [ i for i in range(1, len(longterm_dates) + 1)]
 plt.rcParams.update({'font.size': 20})
 plt.figure(figsize=(11, 7))
 
-plt.plot(longterm_dates, longterm_counts, marker='o', label="LongTerm", color='blue')
-plt.plot(randomssh_dates, randomssh_counts, marker='o', label="RandomSSH", color='orange')
+plt.plot(dates, longterm_counts, marker='o', label="LongTerm", color='blue')
+plt.plot(dates, randomssh_counts, marker='o', label="RandomSSH", color='orange')
 
 plt.xlabel('Date')
 plt.ylabel('Counts')
+plt.yscale('log')
 plt.xticks(rotation=90)
 plt.tight_layout()
 plt.legend()
